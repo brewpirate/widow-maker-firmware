@@ -522,8 +522,8 @@
 #endif
 
 // Mechanical endstop with COM to ground and NC to Signal uses "false" here (most common setup).
-#define X_MIN_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
-#define Y_MIN_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
+#define X_MIN_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
+#define Y_MIN_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
 #define Z_MIN_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
 #define X_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
 #define Y_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
@@ -559,8 +559,8 @@
  * Override with M92
  *                                      X, Y, Z, E0 [, E1[, E2[, E3[, E4]]]]
  */
-// Stock DRV8825
-#define DEFAULT_AXIS_STEPS_PER_UNIT   { 160, 160, 3200, 810 }
+// Stock DRV8825 Z,E TMC2130 X,Y
+#define DEFAULT_AXIS_STEPS_PER_UNIT   { 80, 80, 3200, 810 }
 // Modify in _WidowMaker_Config.h
 // #define DEFAULT_AXIS_STEPS_PER_UNIT   { WM_X_CALC_STEPS, WM_Y_CALC_STEPS, WM_Z_CALC_STEPS, WM_E0_CALC_STEPS }
 
