@@ -28,29 +28,21 @@
 #if ENABLED(ULTRA_LCD) || ENABLED(MALYAN_LCD)
   void lcd_init();
   bool lcd_detected();
+  void lcd_update();
+  void lcd_setalertstatusPGM(const char* message);
+#else
+  inline void lcd_init() {}
+  inline bool lcd_detected() { return true; }
+  inline void lcd_update() {}
+  inline void lcd_setalertstatusPGM(const char* message) { UNUSED(message); }
 #endif
 
 #if ENABLED(ULTRA_LCD)
 
   #include "Marlin.h"
 
-  #if ENABLED(AUTO_BED_LEVELING_UBL) || ENABLED(G26_MESH_VALIDATION)
-    extern bool lcd_external_control;
-  #else
-    constexpr bool lcd_external_control = false;
-  #endif
-
-  extern int16_t lcd_preheat_hotend_temp[2], lcd_preheat_bed_temp[2], lcd_preheat_fan_speed[2];
-
-  #if ENABLED(LCD_BED_LEVELING)
-    extern bool lcd_wait_for_move;
-  #else
-    constexpr bool lcd_wait_for_move = false;
-  #endif
-
   int16_t lcd_strlen(const char* s);
   int16_t lcd_strlen_P(const char* s);
-  void lcd_update();
   bool lcd_hasstatus();
   void lcd_setstatus(const char* message, const bool persist=false);
   void lcd_setstatusPGM(const char* message, const int8_t level=0);
@@ -67,6 +59,8 @@
   #if HAS_BUZZER
     void lcd_buzz(const long duration, const uint16_t freq);
   #endif
+
+  void lcd_quick_feedback(const bool clear_buttons); // Audible feedback for a button click - could also be visual
 
   #if ENABLED(LCD_PROGRESS_BAR) && PROGRESS_MSG_EXPIRE > 0
     void dontExpireStatus();
@@ -101,6 +95,20 @@
     typedef void (*screenFunc_t)();
     typedef void (*menuAction_t)();
 
+    extern int16_t lcd_preheat_hotend_temp[2], lcd_preheat_bed_temp[2], lcd_preheat_fan_speed[2];
+
+    #if ENABLED(AUTO_BED_LEVELING_UBL) || ENABLED(G26_MESH_VALIDATION)
+      extern bool lcd_external_control;
+    #else
+      constexpr bool lcd_external_control = false;
+    #endif
+
+    #if ENABLED(LCD_BED_LEVELING)
+      extern bool lcd_wait_for_move;
+    #else
+      constexpr bool lcd_wait_for_move = false;
+    #endif
+
     void lcd_goto_screen(screenFunc_t screen, const uint32_t encoder=0);
 
     // Encoder click is directly connected
@@ -124,7 +132,6 @@
 
     extern volatile uint8_t buttons;  // The last-checked buttons in a bit array.
     void lcd_buttons_update();
-    void lcd_quick_feedback(const bool clear_buttons); // Audible feedback for a button click - could also be visual
     void lcd_completion_feedback(const bool good=true);
 
     #if ENABLED(ADVANCED_PAUSE_FEATURE)
@@ -228,20 +235,16 @@
     void wait_for_release();
   #endif
 
-#else // no LCD
+#else // MALYAN_LCD or no LCD
 
   constexpr bool lcd_wait_for_move = false;
 
-  inline void lcd_init() {}
-  inline bool lcd_detected() { return true; }
-  inline void lcd_update() {}
   inline void lcd_refresh() {}
   inline void lcd_buttons_update() {}
   inline bool lcd_hasstatus() { return false; }
   inline void lcd_setstatus(const char* const message, const bool persist=false) { UNUSED(message); UNUSED(persist); }
   inline void lcd_setstatusPGM(const char* const message, const int8_t level=0) { UNUSED(message); UNUSED(level); }
   inline void lcd_status_printf_P(const uint8_t level, const char * const fmt, ...) { UNUSED(level); UNUSED(fmt); }
-  inline void lcd_setalertstatusPGM(const char* message) { UNUSED(message); }
   inline void lcd_reset_alert_level() {}
   inline void lcd_reset_status() {}
 

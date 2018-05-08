@@ -43,6 +43,10 @@
   #define SOFT_PWM_SCALE 0
 #endif
 
+#define ENABLE_TEMPERATURE_INTERRUPT()  SBI(TIMSK0, OCIE0B)
+#define DISABLE_TEMPERATURE_INTERRUPT() CBI(TIMSK0, OCIE0B)
+#define TEMPERATURE_ISR_ENABLED()      TEST(TIMSK0, OCIE0B)
+
 #define HOTEND_LOOP() for (int8_t e = 0; e < HOTENDS; e++)
 
 #if HOTENDS == 1
@@ -57,23 +61,23 @@
  * States for ADC reading in the ISR
  */
 enum ADCSensorState : char {
-  #if HAS_TEMP_0
+  #if HAS_TEMP_ADC_0
     PrepareTemp_0,
     MeasureTemp_0,
   #endif
-  #if HAS_TEMP_1
+  #if HAS_TEMP_ADC_1
     PrepareTemp_1,
     MeasureTemp_1,
   #endif
-  #if HAS_TEMP_2
+  #if HAS_TEMP_ADC_2
     PrepareTemp_2,
     MeasureTemp_2,
   #endif
-  #if HAS_TEMP_3
+  #if HAS_TEMP_ADC_3
     PrepareTemp_3,
     MeasureTemp_3,
   #endif
-  #if HAS_TEMP_4
+  #if HAS_TEMP_ADC_4
     PrepareTemp_4,
     MeasureTemp_4,
   #endif
@@ -118,8 +122,6 @@ enum ADCSensorState : char {
 class Temperature {
 
   public:
-
-    static volatile bool in_temp_isr;
 
     static float current_temperature[HOTENDS];
     static int16_t current_temperature_raw[HOTENDS],
@@ -166,11 +168,6 @@ class Temperature {
       #endif
     #endif
 
-    #if HAS_TEMP_CHAMBER
-      static float current_temperature_chamber;
-      static int16_t current_temperature_chamber_raw;
-    #endif
-
     #if ENABLED(BABYSTEPPING)
       static volatile int babystepsTodo[3];
     #endif
@@ -199,7 +196,7 @@ class Temperature {
     FORCE_INLINE static bool hotEnoughToExtrude(const uint8_t e) { return !tooColdToExtrude(e); }
     FORCE_INLINE static bool targetHotEnoughToExtrude(const uint8_t e) { return !targetTooColdToExtrude(e); }
 
-  private: 
+  private:
 
     static volatile bool temp_meas_ready;
     static uint16_t raw_temp_value[MAX_EXTRUDERS];
@@ -268,8 +265,9 @@ class Temperature {
 
     #if HAS_TEMP_CHAMBER
       static uint16_t raw_temp_chamber_value;
+      static float current_temperature_chamber;
+      static int16_t current_temperature_chamber_raw;
     #endif
-
 
     #ifdef MAX_CONSECUTIVE_LOW_TEMPERATURE_ERROR_ALLOWED
       static uint8_t consecutive_low_temperature_error[HOTENDS];
