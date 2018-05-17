@@ -371,9 +371,9 @@
 
   // If you are using a pre-configured hotend then you can use one of the value sets by uncommenting it
 
-  #define  DEFAULT_Kp 22.2
-  #define  DEFAULT_Ki 1.08
-  #define  DEFAULT_Kd 114
+  #define  DEFAULT_Kp 33.88
+  #define  DEFAULT_Ki 5.44
+  #define  DEFAULT_Kd 52.73
 
   // Ultimaker
   //#define DEFAULT_Kp 22.2
@@ -424,9 +424,9 @@
 #if ENABLED(PIDTEMPBED)
 
   //#define PID_BED_DEBUG // Sends debug data to the serial port.
-  #define  DEFAULT_bedKp 278.84
-  #define  DEFAULT_bedKi 54.55
-  #define  DEFAULT_bedKd 356.56
+  #define  DEFAULT_bedKp 122.73
+  #define  DEFAULT_bedKi 24.16
+  #define  DEFAULT_bedKd 155.84
   // FIND YOUR OWN: "M303 E-1 C8 S90" to run autotune on the bed at 90 degreesC for 8 cycles.
 
   //120V 250W silicone heater into 4mm borosilicate (MendelMax 1.5+)
@@ -736,9 +736,9 @@
  *      O-- FRONT --+
  *    (0,0)
  */
-#define X_PROBE_OFFSET_FROM_EXTRUDER 10  // X offset: -left  +right  [of the nozzle]
-#define Y_PROBE_OFFSET_FROM_EXTRUDER 10  // Y offset: -front +behind [the nozzle]
-#define Z_PROBE_OFFSET_FROM_EXTRUDER -1.3   // Z offset: -below +above  [the nozzle]
+#define X_PROBE_OFFSET_FROM_EXTRUDER 27  // X offset: -left  +right  [of the nozzle]
+#define Y_PROBE_OFFSET_FROM_EXTRUDER 0  // Y offset: -front +behind [the nozzle]
+#define Z_PROBE_OFFSET_FROM_EXTRUDER -1.7   // Z offset: -below +above  [the nozzle]
 
 // Certain types of probes need to stay away from edges
 #define MIN_PROBE_EDGE 10
@@ -841,7 +841,7 @@
 // @section machine
 
 // The size of the print bed
-#define X_BED_SIZE 355
+#define X_BED_SIZE 350
 #define Y_BED_SIZE 240
 
 // Travel limits (mm) after homing, corresponding to endstop positions.
