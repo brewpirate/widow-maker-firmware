@@ -9,8 +9,8 @@ Additional documentation can be found at the [Marlin Home Page](http://marlinfw.
 Please test this firmware and let us know if it misbehaves in any way. Volunteers are standing by!
 
 ## TODO
- - PID tune extruder  `M303 E0 S225 U1`
- - PID tune bed  `M303 E-1 S85 U1`
+ - ~~PID tune extruder  `M303 E0 S225 U1`~~
+ - ~~PID tune bed  `M303 E-1 S85 U1`~~
  - [Calibrate esteps](https://mattshub.com/2017/04/19/extruder-calibration/) 
  - [Calibrate xyz](https://www.thingiverse.com/thing:2397591) 
  - Install TMC2130 on XY
