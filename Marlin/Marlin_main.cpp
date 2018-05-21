@@ -336,10 +336,6 @@
   #include "I2CPositionEncoder.h"
 #endif
 
-#if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
-  #include "endstop_interrupts.h"
-#endif
-
 #if ENABLED(M100_FREE_MEMORY_WATCHER)
   void gcode_M100();
   void M100_dump_routine(const char * const title, const char *start, const char *end);
@@ -535,10 +531,6 @@ static millis_t stepper_inactive_time = (DEFAULT_STEPPER_DEACTIVE_TIME) * 1000UL
   #define BUZZ(d,f) buzzer.tone(d, f)
 #else
   #define BUZZ(d,f) NOOP
-#endif
-
-#if ENABLED(SWITCHING_NOZZLE)
-  #define DO_SWITCH_EXTRUDER (SWITCHING_EXTRUDER_SERVO_NR != SWITCHING_NOZZLE_SERVO_NR)
 #endif
 
 uint8_t target_extruder;
@@ -2232,7 +2224,7 @@ void clean_up_after_endstop_or_probe_move() {
     do_blocking_move_to_z(z, fr_mm_s);
 
     // Check to see if the probe was triggered
-    const bool probe_triggered = TEST(Endstops::endstop_hit_bits,
+    const bool probe_triggered = TEST(endstops.trigger_state(),
       #if ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
         Z_MIN
       #else
@@ -3901,7 +3893,7 @@ inline void gcode_G4() {
 
     // If an endstop was not hit, then damage can occur if homing is continued.
     // This can occur if the delta height not set correctly.
-    if (!(Endstops::endstop_hit_bits & (_BV(X_MAX) | _BV(Y_MAX) | _BV(Z_MAX)))) {
+    if (!(endstops.trigger_state() & (_BV(X_MAX) | _BV(Y_MAX) | _BV(Z_MAX)))) {
       LCD_MESSAGEPGM(MSG_ERR_HOMING_FAILED);
       SERIAL_ERROR_START();
       SERIAL_ERRORLNPGM(MSG_ERR_HOMING_FAILED);
@@ -7944,7 +7936,7 @@ inline void gcode_M105() {
         }
       #endif // EXTRA_FAN_SPEED
       const uint16_t s = parser.ushortval('S', 255);
-      fanSpeeds[p] = MIN(s, 255);
+      fanSpeeds[p] = MIN(s, 255U);
     }
   }
 
@@ -8478,7 +8470,7 @@ inline void gcode_M111() {
  */
 inline void gcode_M81() {
   thermalManager.disable_all_heaters();
-  stepper.finish_and_disable();
+  planner.finish_and_disable();
 
   #if FAN_COUNT > 0
     for (uint8_t i = 0; i < FAN_COUNT; i++) fanSpeeds[i] = 0;
@@ -8521,7 +8513,7 @@ inline void gcode_M18_M84() {
   else {
     bool all_axis = !(parser.seen('X') || parser.seen('Y') || parser.seen('Z') || parser.seen('E'));
     if (all_axis) {
-      stepper.finish_and_disable();
+      planner.finish_and_disable();
     }
     else {
       planner.synchronize();
@@ -9336,7 +9328,7 @@ inline void gcode_M211() {
    *   T<tool>
    *   X<xoffset>
    *   Y<yoffset>
-   *   Z<zoffset> - Available with DUAL_X_CARRIAGE and SWITCHING_NOZZLE
+   *   Z<zoffset> - Available with DUAL_X_CARRIAGE, SWITCHING_NOZZLE, and PARKING_EXTRUDER
    */
   inline void gcode_M218() {
     if (get_target_extruder_from_command(218) || target_extruder == 0) return;
@@ -9351,7 +9343,7 @@ inline void gcode_M211() {
       report = false;
     }
 
-    #if ENABLED(DUAL_X_CARRIAGE) || ENABLED(SWITCHING_NOZZLE) || ENABLED(PARKING_EXTRUDER)
+    #if HAS_HOTEND_OFFSET_Z
       if (parser.seenval('Z')) {
         hotend_offset[Z_AXIS][target_extruder] = parser.value_linear_units();
         report = false;
@@ -9366,7 +9358,7 @@ inline void gcode_M211() {
         SERIAL_ECHO(hotend_offset[X_AXIS][e]);
         SERIAL_CHAR(',');
         SERIAL_ECHO(hotend_offset[Y_AXIS][e]);
-        #if ENABLED(DUAL_X_CARRIAGE) || ENABLED(SWITCHING_NOZZLE) || ENABLED(PARKING_EXTRUDER)
+        #if HAS_HOTEND_OFFSET_Z
           SERIAL_CHAR(',');
           SERIAL_ECHO(hotend_offset[Z_AXIS][e]);
         #endif
@@ -9967,7 +9959,7 @@ inline void gcode_M400() { planner.synchronize(); }
 #endif // FILAMENT_WIDTH_SENSOR
 
 void quickstop_stepper() {
-  stepper.quick_stop();
+  planner.quick_stop();
   planner.synchronize();
   set_current_from_steppers_for_axis(ALL_AXES);
   SYNC_PLAN_POSITION_KINEMATIC();
@@ -10346,7 +10338,7 @@ inline void gcode_M502() {
    * M540: Set whether SD card print should abort on endstop hit (M540 S<0|1>)
    */
   inline void gcode_M540() {
-    if (parser.seen('S')) stepper.abort_on_endstop_hit = parser.value_bool();
+    if (parser.seen('S')) planner.abort_on_endstop_hit = parser.value_bool();
   }
 
 #endif // ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED
@@ -11512,7 +11504,7 @@ inline void gcode_M999() {
   flush_and_request_resend();
 }
 
-#if ENABLED(SWITCHING_EXTRUDER)
+#if DO_SWITCH_EXTRUDER
   #if EXTRUDERS > 3
     #define REQ_ANGLES 4
     #define _SERVO_NR (e < 2 ? SWITCHING_EXTRUDER_SERVO_NR : SWITCHING_EXTRUDER_E23_SERVO_NR)
@@ -11532,7 +11524,7 @@ inline void gcode_M999() {
       safe_delay(500);
     }
   }
-#endif // SWITCHING_EXTRUDER
+#endif // DO_SWITCH_EXTRUDER
 
 #if ENABLED(SWITCHING_NOZZLE)
   inline void move_nozzle_servo(const uint8_t e) {
@@ -12999,7 +12991,8 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
         idle();
       }
       LOOP_XYZE(i) raw[i] += segment_distance[i];
-      planner.buffer_line_kinematic(raw, fr_mm_s, active_extruder, cartesian_segment_mm);
+      if (!planner.buffer_line_kinematic(raw, fr_mm_s, active_extruder, cartesian_segment_mm))
+        break;
     }
 
     // Since segment_distance is only approximate,
@@ -13285,7 +13278,8 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
       #if ENABLED(SCARA_FEEDRATE_SCALING)
         // For SCARA scale the feed rate from mm/s to degrees/s
         // i.e., Complete the angular vector in the given time.
-        planner.buffer_segment(delta[A_AXIS], delta[B_AXIS], raw[Z_AXIS], raw[E_AXIS], HYPOT(delta[A_AXIS] - oldA, delta[B_AXIS] - oldB) * inverse_secs, active_extruder);
+        if (!planner.buffer_segment(delta[A_AXIS], delta[B_AXIS], raw[Z_AXIS], raw[E_AXIS], HYPOT(delta[A_AXIS] - oldA, delta[B_AXIS] - oldB) * inverse_secs, active_extruder))
+          break;
         /*
         SERIAL_ECHO(segments);
         SERIAL_ECHOPAIR(": X=", raw[X_AXIS]); SERIAL_ECHOPAIR(" Y=", raw[Y_AXIS]);
@@ -13295,7 +13289,8 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
         //*/
         oldA = delta[A_AXIS]; oldB = delta[B_AXIS];
       #else
-        planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], raw[E_AXIS], _feedrate_mm_s, active_extruder, cartesian_segment_mm);
+        if (!planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], raw[E_AXIS], _feedrate_mm_s, active_extruder, cartesian_segment_mm))
+          break;
       #endif
     }
 
@@ -13389,14 +13384,14 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
           }
           // unpark extruder: 1) raise, 2) move into starting XY position, 3) lower
           for (uint8_t i = 0; i < 3; i++)
-            planner.buffer_line(
+            if (!planner.buffer_line(
               i == 0 ? raised_parked_position[X_AXIS] : current_position[X_AXIS],
               i == 0 ? raised_parked_position[Y_AXIS] : current_position[Y_AXIS],
               i == 2 ? current_position[Z_AXIS] : raised_parked_position[Z_AXIS],
               current_position[E_AXIS],
               i == 1 ? PLANNER_XY_FEEDRATE() : planner.max_feedrate_mm_s[Z_AXIS],
-              active_extruder
-            );
+              active_extruder)
+            ) break;
           delayed_move_time = 0;
           active_extruder_parked = false;
           #if ENABLED(DEBUG_LEVELING_FEATURE)
@@ -13413,17 +13408,12 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
               }
             #endif
             // move duplicate extruder into correct duplication position.
-            planner.set_position_mm(
-              inactive_extruder_x_pos,
-              current_position[Y_AXIS],
-              current_position[Z_AXIS],
-              current_position[E_AXIS]
-            );
-            planner.buffer_line(
+            planner.set_position_mm(inactive_extruder_x_pos, current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+            if (!planner.buffer_line(
               current_position[X_AXIS] + duplicate_extruder_x_offset,
               current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS],
-              planner.max_feedrate_mm_s[X_AXIS], 1
-            );
+              planner.max_feedrate_mm_s[X_AXIS], 1)
+            ) break;
             planner.synchronize();
             SYNC_PLAN_POSITION_KINEMATIC();
             extruder_duplication_enabled = true;
@@ -13656,14 +13646,17 @@ void prepare_move_to_destination() {
         // i.e., Complete the angular vector in the given time.
         inverse_kinematics(raw);
         ADJUST_DELTA(raw);
-        planner.buffer_segment(delta[A_AXIS], delta[B_AXIS], raw[Z_AXIS], raw[E_AXIS], HYPOT(delta[A_AXIS] - oldA, delta[B_AXIS] - oldB) * inverse_secs, active_extruder);
+        if (!planner.buffer_segment(delta[A_AXIS], delta[B_AXIS], raw[Z_AXIS], raw[E_AXIS], HYPOT(delta[A_AXIS] - oldA, delta[B_AXIS] - oldB) * inverse_secs, active_extruder))
+          break;
         oldA = delta[A_AXIS]; oldB = delta[B_AXIS];
       #elif HAS_UBL_AND_CURVES
         float pos[XYZ] = { raw[X_AXIS], raw[Y_AXIS], raw[Z_AXIS] };
         planner.apply_leveling(pos);
-        planner.buffer_segment(pos[X_AXIS], pos[Y_AXIS], pos[Z_AXIS], raw[E_AXIS], fr_mm_s, active_extruder);
+        if (!planner.buffer_segment(pos[X_AXIS], pos[Y_AXIS], pos[Z_AXIS], raw[E_AXIS], fr_mm_s, active_extruder))
+          break;
       #else
-        planner.buffer_line_kinematic(raw, fr_mm_s, active_extruder);
+        if (!planner.buffer_line_kinematic(raw, fr_mm_s, active_extruder))
+          break;
       #endif
     }
 
@@ -14295,7 +14288,9 @@ void setup() {
 
   print_job_timer.init();   // Initial setup of print job timer
 
-  stepper.init();           // Initialize stepper, this enables interrupts!
+  endstops.init();          // Init endstops and pullups
+
+  stepper.init();           // Init stepper. This enables interrupts!
 
   servo_init();             // Initialize all servos, stow servo probe
 
@@ -14418,10 +14413,6 @@ void setup() {
   #if ENABLED(EXPERIMENTAL_I2CBUS) && I2C_SLAVE_ADDRESS > 0
     i2c.onReceive(i2c_on_receive);
     i2c.onRequest(i2c_on_request);
-  #endif
-
-  #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
-    setup_endstop_interrupts();
   #endif
 
   #if DO_SWITCH_EXTRUDER
